@@ -36,7 +36,7 @@ let equal ~loc j1 j2 =
   match Jdg.alpha_equal_eq_term ~loc j1 j2 with
     | Some eq -> Opt.return eq
     | None ->
-      Predefined.operation_equal ~loc j1 j2 >!= begin function
+      PredefinedTT.operation_equal ~loc j1 j2 >!= begin function
         | Some juser ->
           Runtime.lookup_typing_signature >!= fun signature ->
           let target = Jdg.form_ty ~loc signature (Jdg.Eq (j1, j2)) in
@@ -62,12 +62,12 @@ let coerce ~loc je jt =
      Opt.return je
 
   | None ->
-     Predefined.operation_coerce ~loc je jt >!=
+     PredefinedTT.operation_coerce ~loc je jt >!=
        begin function
 
-       | Predefined.NotCoercible -> Opt.fail
+       | PredefinedTT.NotCoercible -> Opt.fail
 
-       | Predefined.Convertible eq ->
+       | PredefinedTT.Convertible eq ->
           let eq_lhs = Jdg.eq_ty_side Jdg.LEFT eq
           and eq_rhs = Jdg.eq_ty_side Jdg.RIGHT eq in
           begin
@@ -80,7 +80,7 @@ let coerce ~loc je jt =
                Runtime.(error ~loc (InvalidConvertible (je_ty, jt, eq)))
           end
 
-       | Predefined.Coercible je ->
+       | PredefinedTT.Coercible je ->
           begin
             match Jdg.alpha_equal_eq_ty ~loc (Jdg.typeof je) jt with
             | Some _ ->
@@ -98,13 +98,13 @@ let coerce_fun ~loc je =
   | Some (a, b) -> Opt.return (je, a, b)
 
   | None ->
-     Predefined.operation_coerce_fun ~loc je >!=
+     PredefinedTT.operation_coerce_fun ~loc je >!=
      begin function
 
-       | Predefined.NotCoercible ->
+       | PredefinedTT.NotCoercible ->
           Opt.fail
 
-       | Predefined.Convertible eq ->
+       | PredefinedTT.Convertible eq ->
           let eq_lhs = Jdg.eq_ty_side Jdg.LEFT eq
           and eq_rhs = Jdg.eq_ty_side Jdg.RIGHT eq in
           begin
@@ -123,7 +123,7 @@ let coerce_fun ~loc je =
                  Runtime.(error ~loc (InvalidFunConvertible (jt, eq)))
           end
 
-       | Predefined.Coercible je ->
+       | PredefinedTT.Coercible je ->
           begin
             let jt = Jdg.typeof je in
             match Jdg.shape_prod jt with
@@ -145,7 +145,7 @@ let as_eq ~loc t =
   match as_eq_alpha t with
     | Some (e1, e2) -> Opt.return (Jdg.reflexivity_ty t, e1, e2)
     | None ->
-      Predefined.operation_as_eq ~loc t >!=
+      PredefinedTT.operation_as_eq ~loc t >!=
       begin function
         | None ->
           Opt.fail
@@ -183,7 +183,7 @@ let as_prod ~loc t =
   match as_prod_alpha t with
     | Some (a, b) -> Opt.return (Jdg.reflexivity_ty t, a, b)
     | None ->
-      Predefined.operation_as_prod ~loc t >!=
+      PredefinedTT.operation_as_prod ~loc t >!=
       begin function
         | None ->
           Opt.fail

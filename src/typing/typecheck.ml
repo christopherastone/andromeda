@@ -61,39 +61,6 @@ let ml_schema (Syntax.ML_Forall (params, t)) =
   let t = ml_ty params t in
   (params, t)
 
-let rec tt_pattern xs {Location.thing = p; loc} =
-  match p with
-  | Syntax.Tt_Anonymous -> Tyenv.return ()
-
-  | Syntax.Tt_As (p, k) ->
-    let _, t = List.nth xs k in
-    Tyenv.add_equation ~loc t Mlty.Jdg >>= fun () ->
-    tt_pattern xs p
-
-  | Syntax.Tt_Bound k ->
-    Tyenv.lookup_var k >>= fun t ->
-    Tyenv.add_equation ~loc t Mlty.Jdg
-
-  | Syntax.Tt_Type -> Tyenv.return ()
-
-  | Syntax.Tt_Constant _ -> Tyenv.return ()
-
-  | Syntax.Tt_Lambda (x, _, popt, p)
-  | Syntax.Tt_Prod (x, _, popt, p) ->
-    begin match popt with
-      | Some pt -> tt_pattern xs pt
-      | None -> Tyenv.return ()
-    end >>= fun () ->
-    Tyenv.add_var x Mlty.Jdg (tt_pattern xs p)
-
-  | Syntax.Tt_Apply (p1, p2)
-  | Syntax.Tt_Eq (p1, p2) ->
-    tt_pattern xs p1 >>= fun () ->
-    tt_pattern xs p2
-
-  | Syntax.Tt_Refl p | Syntax.Tt_GenAtom p | Syntax.Tt_GenConstant p ->
-    tt_pattern xs p
-
 
 let rec pattern xs {Location.thing = p; loc} =
   match p with
@@ -106,10 +73,7 @@ let rec pattern xs {Location.thing = p; loc} =
 
   | Syntax.Patt_Bound k -> Tyenv.lookup_var k
 
-  | Syntax.Patt_Jdg (p1, p2) ->
-    tt_pattern xs p1 >>= fun () ->
-    tt_pattern xs p2 >>= fun () ->
-    Tyenv.return Mlty.Jdg
+  | Syntax.Patt_Jdg p -> TypecheckTT.tt_jdg xs p
 
   | Syntax.Patt_Constructor (c, ps) ->
     Tyenv.lookup_constructor c >>= fun (ts, out) ->
@@ -153,7 +117,7 @@ let match_op_case xs ps popt argts m =
   let xs = List.map (fun x -> x, Mlty.fresh_type ()) xs in
   let pts = List.combine ps argts in
   begin match popt with
-    | Some p -> 
+    | Some p ->
        Tyenv.predefined_type Name.Predefined.option [Mlty.Jdg] >>= fun t ->
        Tyenv.return ((p, t) :: pts)
     | None ->
@@ -175,8 +139,8 @@ let match_op_case xs ps popt argts m =
 
 let rec comp ({Location.thing=c; loc} : _ Syntax.comp) : (Mlty.ty_schema Syntax.comp * Mlty.ty) Tyenv.tyenvM =
   match c with
-  | Syntax.Type ->
-    return (locate ~loc Syntax.Type, Mlty.Jdg)
+  | Syntax.TTc ttc ->
+      TypecheckTT.compTT ~loc (check_comp) ttc
 
   | Syntax.Bound k ->
     Tyenv.lookup_var k >>= fun t ->
@@ -315,15 +279,6 @@ let rec comp ({Location.thing=c; loc} : _ Syntax.comp) : (Mlty.ty_schema Syntax.
          Tyenv.return (locate ~loc (Syntax.External s), t)
     end
 
-  | Syntax.Constant c -> Tyenv.return (locate ~loc (Syntax.Constant c), Mlty.Jdg)
-
-  | Syntax.Lambda (x, copt, c) ->
-    begin match copt with
-      | Some ct -> check_comp ct Mlty.Jdg >>= fun ct -> return (Some ct)
-      | None -> Tyenv.return None
-    end >>= fun copt ->
-    Tyenv.add_var x Mlty.Jdg (check_comp c Mlty.Jdg) >>= fun c ->
-    Tyenv.return (locate ~loc (Syntax.Lambda (x, copt, c)), Mlty.Jdg)
 
   | Syntax.Apply (c1, c2) ->
     comp c1 >>= fun (c1, t1) ->
@@ -332,64 +287,11 @@ let rec comp ({Location.thing=c; loc} : _ Syntax.comp) : (Mlty.ty_schema Syntax.
     Tyenv.add_application ~loc t1 t2 out >>= fun () ->
     Tyenv.return (locate ~loc (Syntax.Apply (c1, c2)), out)
 
-  | Syntax.Prod (x, ct, c) ->
-    check_comp ct Mlty.Jdg >>= fun ct ->
-    Tyenv.add_var x Mlty.Jdg (check_comp c Mlty.Jdg) >>= fun c ->
-    Tyenv.return (locate ~loc (Syntax.Prod (x, ct, c)), Mlty.Jdg)
-
-  | Syntax.Eq (c1, c2) ->
-    check_comp c1 Mlty.Jdg >>= fun c1 ->
-    check_comp c2 Mlty.Jdg >>= fun c2 ->
-    Tyenv.return (locate ~loc (Syntax.Eq (c1, c2)), Mlty.Jdg)
-
-  | Syntax.Refl c ->
-    check_comp c Mlty.Jdg >>= fun c ->
-    Tyenv.return (locate ~loc (Syntax.Refl c), Mlty.Jdg)
 
   | Syntax.Yield c ->
     Tyenv.lookup_continuation >>= fun (a, b) ->
     check_comp c a >>= fun c ->
     Tyenv.return (locate ~loc (Syntax.Yield c), b)
-
-  | Syntax.CongrProd (c1, c2, c3) ->
-    check_comp c1 Mlty.Jdg >>= fun c1 ->
-    check_comp c2 Mlty.Jdg >>= fun c2 ->
-    check_comp c3 Mlty.Jdg >>= fun c3 ->
-    return (locate ~loc (Syntax.CongrProd (c1, c2, c3)), Mlty.Jdg)
-
-  | Syntax.CongrApply (c1, c2, c3, c4, c5) ->
-    check_comp c1 Mlty.Jdg >>= fun c1 ->
-    check_comp c2 Mlty.Jdg >>= fun c2 ->
-    check_comp c3 Mlty.Jdg >>= fun c3 ->
-    check_comp c4 Mlty.Jdg >>= fun c4 ->
-    check_comp c5 Mlty.Jdg >>= fun c5 ->
-    return (locate ~loc (Syntax.CongrApply (c1, c2, c3, c4, c5)), Mlty.Jdg)
-
-  | Syntax.CongrLambda (c1, c2, c3, c4) ->
-    check_comp c1 Mlty.Jdg >>= fun c1 ->
-    check_comp c2 Mlty.Jdg >>= fun c2 ->
-    check_comp c3 Mlty.Jdg >>= fun c3 ->
-    check_comp c4 Mlty.Jdg >>= fun c4 ->
-    return (locate ~loc (Syntax.CongrLambda (c1, c2, c3, c4)), Mlty.Jdg)
-
-  | Syntax.CongrEq (c1, c2, c3) ->
-    check_comp c1 Mlty.Jdg >>= fun c1 ->
-    check_comp c2 Mlty.Jdg >>= fun c2 ->
-    check_comp c3 Mlty.Jdg >>= fun c3 ->
-    return (locate ~loc (Syntax.CongrEq (c1, c2, c3)), Mlty.Jdg)
-
-  | Syntax.CongrRefl (c1, c2) ->
-    check_comp c1 Mlty.Jdg >>= fun c1 ->
-    check_comp c2 Mlty.Jdg >>= fun c2 ->
-    return (locate ~loc (Syntax.CongrRefl (c1, c2)), Mlty.Jdg)
-
-  | Syntax.BetaStep (c1, c2, c3, c4, c5) ->
-    check_comp c1 Mlty.Jdg >>= fun c1 ->
-    check_comp c2 Mlty.Jdg >>= fun c2 ->
-    check_comp c3 Mlty.Jdg >>= fun c3 ->
-    check_comp c4 Mlty.Jdg >>= fun c4 ->
-    check_comp c5 Mlty.Jdg >>= fun c5 ->
-    return (locate ~loc (Syntax.BetaStep (c1, c2, c3, c4, c5)), Mlty.Jdg)
 
   | Syntax.String s -> Tyenv.return (locate ~loc (Syntax.String s), Mlty.String)
 
@@ -479,7 +381,7 @@ and let_clauses (xcs : _ Syntax.let_clause list) : Mlty.ty_schema Syntax.let_cla
       comp c >>= fun (c, t) ->
        begin
          match generalizable c with
-         | Generalizable -> 
+         | Generalizable ->
             Tyenv.generalizes_to ~loc:c.Location.loc t sch
          | Ungeneralizable ->
             begin
@@ -501,14 +403,14 @@ and let_rec_clauses (fycs : _ Syntax.letrec_clause list) : Mlty.ty_schema Syntax
        and b = Mlty.fresh_type () in
        let sch = Mlty.ungeneralized_schema (Mlty.Arrow (a, b)) in
        Tyenv.add_let f sch (bind_functions ((f, None, y, a, c, b) :: acc) rem)
-       
+
     | (f, y, Some sch, c) :: rem ->
        let sch = ml_schema sch.Location.thing in
        let a = Mlty.fresh_type ()
        and b = Mlty.fresh_type () in
        Tyenv.add_let f sch (bind_functions ((f, Some sch, y, a, c, b) :: acc) rem)
 
-    | [] -> 
+    | [] ->
        let rec check_bodies acc = function
          | [] -> Tyenv.return (List.rev acc)
 
@@ -544,7 +446,7 @@ let top_handler ~loc lst =
       let rec bind = function
         | [] ->
           let bindy m = match y with
-            | Some y -> 
+            | Some y ->
                Tyenv.predefined_type Name.Predefined.option [Mlty.Jdg] >>= fun jdg_opt ->
                Tyenv.add_var y jdg_opt m
             | None -> m

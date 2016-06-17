@@ -98,6 +98,16 @@ val print_error : penv:TT.print_env -> error -> Format.formatter -> unit
 (** Report a runtime error (raises an Error exception) *)
 val error : loc:Location.t -> error -> 'a
 
+(** {6 Matching support} *)
+
+(** Inserts a value into an association list, but if the key
+    is already there, raise a Match_fail exception if we're not
+    inserting equal values *)
+val match_update : 'a -> value -> ('a * value) list -> ('a * value) list
+
+(** A particular pattern didn't match; not fatal if there are others *)
+exception Match_fail
+
 
 (** {6 Computation} *)
 

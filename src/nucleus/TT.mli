@@ -1,9 +1,54 @@
+
+
+(** Concrete syntax of value types and terms *)
+
+type bound = int  (* XXX *)
+val int_of_bound : bound -> int
+
+(** Patterns *)
+module Syntax : sig
+  type tt_pattern = tt_pattern' Location.located
+  and tt_pattern' =
+    | Tt_Anonymous
+    | Tt_As of tt_pattern * bound
+    | Tt_Bound of bound
+    | Tt_Type
+    | Tt_Constant of Name.ident
+    | Tt_Lambda of Name.ident * bound option * tt_pattern option * tt_pattern
+    | Tt_Apply of tt_pattern * tt_pattern
+    | Tt_Prod of Name.ident * bound option * tt_pattern option * tt_pattern
+    | Tt_Eq of tt_pattern * tt_pattern
+    | Tt_Refl of tt_pattern
+    | Tt_GenAtom of tt_pattern
+    | Tt_GenConstant of tt_pattern
+
+  type jdg_pattern = tt_pattern * tt_pattern
+
+  type 'annotcomp comp =
+    | Lambda of Name.ident * 'annotcomp option * 'annotcomp
+    | Prod of Name.ident * 'annotcomp * 'annotcomp
+    | Eq of 'annotcomp * 'annotcomp
+    | Refl of 'annotcomp
+    | Type
+    | Constant of Name.ident
+    | CongrProd of 'annotcomp * 'annotcomp * 'annotcomp
+    | CongrApply of 'annotcomp * 'annotcomp * 'annotcomp * 'annotcomp * 'annotcomp
+    | CongrLambda of 'annotcomp * 'annotcomp * 'annotcomp * 'annotcomp
+    | CongrEq of 'annotcomp * 'annotcomp * 'annotcomp
+    | CongrRefl of 'annotcomp * 'annotcomp
+    | BetaStep of 'annotcomp * 'annotcomp * 'annotcomp * 'annotcomp * 'annotcomp
+end
+
+
 (** Abstract syntax of value types and terms *)
+
+
+
+
+
 
 (** An [('a, 'b) abstraction] is a ['b] bound by (x, 'a) *)
 type ('a, 'b) abstraction = (Name.ident * 'a) * 'b
-
-type bound
 
 (** The type of TT terms.
     (For details on the mutual definition with [term'], see module Location.)
@@ -131,3 +176,4 @@ sig
   val ty : ty -> Json.t
 
 end
+

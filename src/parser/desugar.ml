@@ -157,6 +157,7 @@ module Ctx = struct
 end (* module Ctx *)
 
 let locate = Location.locate
+let ttlocate x = locate (Syntax.TTc x)
 
 let mlty ctx params ty =
   (* Get the de Bruijn index of type parameter x *)
@@ -219,46 +220,46 @@ let mlty ctx params ty =
 (* TODO improve locs *)
 let mk_lambda ~loc ys c =
   List.fold_left
-    (fun c (y,u) -> locate (Syntax.Lambda (y,u,c)) loc)
+    (fun c (y,u) -> locate (Syntax.TTc (TT.Syntax.Lambda (y,u,c))) loc)
     c ys
 
 let mk_prod ~loc ys t =
   List.fold_left
-    (fun c (y,u) -> locate (Syntax.Prod (y,u,c)) loc)
+    (fun c (y,u) -> locate (Syntax.TTc (TT.Syntax.Prod (y,u,c))) loc)
     t ys
 
 (* n is the length of vars *)
 let rec tt_pattern bound vars n (p,loc) =
   match p with
   | Input.Tt_Anonymous ->
-     (locate Syntax.Tt_Anonymous loc), vars, n
+     (locate TT.Syntax.Tt_Anonymous loc), vars, n
 
   | Input.Tt_As (p,x) ->
      begin match Name.assoc_ident x vars with
      | Some i ->
         let p, vars, n = tt_pattern bound vars n p in
-        (locate (Syntax.Tt_As (p,i)) loc), vars, n
+        (locate (TT.Syntax.Tt_As (p,i)) loc), vars, n
      | None ->
         let i = n in
         let p, vars, n = tt_pattern bound ((x,n)::vars) (n+1) p in
-        (locate (Syntax.Tt_As (p,i)) loc), vars, n
+        (locate (TT.Syntax.Tt_As (p,i)) loc), vars, n
      end
 
   | Input.Tt_Var x ->
      begin match Name.assoc_ident x vars with
      | Some i ->
-        locate (Syntax.Tt_As ((locate Syntax.Tt_Anonymous loc), i)) loc, vars, n
+        locate (TT.Syntax.Tt_As ((locate TT.Syntax.Tt_Anonymous loc), i)) loc, vars, n
      | None ->
-        locate (Syntax.Tt_As ((locate Syntax.Tt_Anonymous loc), n)) loc, ((x,n)::vars), (n+1)
+        locate (TT.Syntax.Tt_As ((locate TT.Syntax.Tt_Anonymous loc), n)) loc, ((x,n)::vars), (n+1)
      end
 
   | Input.Tt_Type ->
-     (locate Syntax.Tt_Type loc), vars, n
+     (locate TT.Syntax.Tt_Type loc), vars, n
 
   | Input.Tt_Name x ->
      begin match Ctx.find ~loc x bound with
-     | Variable (i,_) -> locate (Syntax.Tt_Bound i) loc, vars, n
-     | Constant -> locate (Syntax.Tt_Constant x) loc, vars, n
+     | Variable (i,_) -> locate (TT.Syntax.Tt_Bound i) loc, vars, n
+     | Constant -> locate (TT.Syntax.Tt_Constant x) loc, vars, n
      | Constructor _ | Operation _ as info -> error ~loc (InvalidTermPatternName (x, info))
      end
 
@@ -284,12 +285,12 @@ let rec tt_pattern bound vars n (p,loc) =
        else None, vars, n
      in
      let p, vars, n = tt_pattern (Ctx.add_lexical x bound) vars n p in
-     locate (Syntax.Tt_Lambda (x,bopt,popt,p)) loc, vars, n
+     locate (TT.Syntax.Tt_Lambda (x,bopt,popt,p)) loc, vars, n
 
   | Input.Tt_Apply (p1,p2) ->
      let p1, vars, n = tt_pattern bound vars n p1 in
      let p2, vars, n = tt_pattern bound vars n p2 in
-     locate (Syntax.Tt_Apply (p1,p2)) loc, vars, n
+     locate (TT.Syntax.Tt_Apply (p1,p2)) loc, vars, n
 
   | Input.Tt_Prod (b,x,popt,p) ->
      let popt, vars, n = match popt with
@@ -312,24 +313,24 @@ let rec tt_pattern bound vars n (p,loc) =
        else None, vars, n
      in
      let p, vars, n = tt_pattern (Ctx.add_lexical x bound) vars n p in
-     locate (Syntax.Tt_Prod (x,bopt,popt,p)) loc, vars, n
+     locate (TT.Syntax.Tt_Prod (x,bopt,popt,p)) loc, vars, n
 
   | Input.Tt_Eq (p1,p2) ->
      let p1, vars, n = tt_pattern bound vars n p1 in
      let p2, vars, n = tt_pattern bound vars n p2 in
-     locate (Syntax.Tt_Eq (p1,p2)) loc, vars, n
+     locate (TT.Syntax.Tt_Eq (p1,p2)) loc, vars, n
 
   | Input.Tt_Refl p ->
      let p, vars, n = tt_pattern bound vars n p in
-     locate (Syntax.Tt_Refl p) loc, vars, n
+     locate (TT.Syntax.Tt_Refl p) loc, vars, n
 
   | Input.Tt_GenAtom p ->
      let p, vars, n = tt_pattern bound vars n p in
-     locate (Syntax.Tt_GenAtom p) loc, vars, n
+     locate (TT.Syntax.Tt_GenAtom p) loc, vars, n
 
   | Input.Tt_GenConstant p ->
      let p, vars, n = tt_pattern bound vars n p in
-     locate (Syntax.Tt_GenConstant p) loc, vars, n
+     locate (TT.Syntax.Tt_GenConstant p) loc, vars, n
 
 and pattern bound vars n (p,loc) =
   match p with
@@ -363,8 +364,8 @@ and pattern bound vars n (p,loc) =
         then locate (Syntax.Patt_Constructor (x,[])) loc, vars, n
         else error ~loc (ArityMismatch (x, 0, k))
      | Constant ->
-        let p = locate (Syntax.Tt_Constant x) loc in
-        let pt = locate Syntax.Tt_Anonymous loc in
+        let p = locate (TT.Syntax.Tt_Constant x) loc in
+        let pt = locate TT.Syntax.Tt_Anonymous loc in
         locate (Syntax.Patt_Jdg (p, pt)) loc, vars, n
      | Operation _ as info -> error ~loc (InvalidPatternName (x, info))
      end
@@ -487,6 +488,11 @@ let rec comp ~yield bound (c',loc) =
   | Input.External s ->
      locate (Syntax.External s) loc
 
+  | Input.Spine (e, cs) ->
+     spine ~yield bound e cs
+
+
+
   | Input.Lambda (xs, c) ->
      let rec fold bound ys = function
        | [] ->
@@ -503,9 +509,6 @@ let rec comp ~yield bound (c',loc) =
      in
      fold bound [] xs
 
-  | Input.Spine (e, cs) ->
-     spine ~yield bound e cs
-
   | Input.Prod (xs, c) ->
      let rec fold bound ys = function
        | [] ->
@@ -518,19 +521,63 @@ let rec comp ~yield bound (c',loc) =
      in
      fold bound [] xs
 
+  | Input.Type ->
+     ttlocate TT.Syntax.Type loc
+
   | Input.Eq (c1, c2) ->
      let c1 = comp ~yield bound c1
      and c2 = comp ~yield bound c2 in
-     locate (Syntax.Eq (c1, c2)) loc
+     ttlocate (TT.Syntax.Eq (c1, c2)) loc
 
   | Input.Refl c ->
      let c = comp ~yield bound c in
-     locate (Syntax.Refl c) loc
+     ttlocate (TT.Syntax.Refl c) loc
+
+  | Input.CongrProd (e1, e2, e3) ->
+     let e1 = comp ~yield bound e1
+     and e2 = comp ~yield bound e2
+     and e3 = comp ~yield bound e3 in
+     ttlocate (TT.Syntax.CongrProd (e1, e2, e3)) loc
+
+  | Input.CongrApply (e1, e2, e3, e4, e5) ->
+     let e1 = comp ~yield bound e1
+     and e2 = comp ~yield bound e2
+     and e3 = comp ~yield bound e3
+     and e4 = comp ~yield bound e4
+     and e5 = comp ~yield bound e5 in
+     ttlocate (TT.Syntax.CongrApply (e1, e2, e3, e4, e5)) loc
+
+  | Input.CongrLambda (e1, e2, e3, e4) ->
+     let e1 = comp ~yield bound e1
+     and e2 = comp ~yield bound e2
+     and e3 = comp ~yield bound e3
+     and e4 = comp ~yield bound e4 in
+     ttlocate (TT.Syntax.CongrLambda (e1, e2, e3, e4)) loc
+
+  | Input.CongrEq (e1, e2, e3) ->
+     let e1 = comp ~yield bound e1
+     and e2 = comp ~yield bound e2
+     and e3 = comp ~yield bound e3 in
+     ttlocate (TT.Syntax.CongrEq (e1, e2, e3)) loc
+
+  | Input.CongrRefl (e1, e2) ->
+     let e1 = comp ~yield bound e1
+     and e2 = comp ~yield bound e2 in
+     ttlocate (TT.Syntax.CongrRefl (e1, e2)) loc
+
+  | Input.BetaStep (e1, e2, e3, e4, e5) ->
+     let e1 = comp ~yield bound e1
+     and e2 = comp ~yield bound e2
+     and e3 = comp ~yield bound e3
+     and e4 = comp ~yield bound e4
+     and e5 = comp ~yield bound e5 in
+     ttlocate (TT.Syntax.BetaStep (e1, e2, e3, e4, e5)) loc
+
 
   | Input.Var x ->
      begin match Ctx.find ~loc x bound with
      | Variable (i,_) -> locate (Syntax.Bound i) loc
-     | Constant -> locate (Syntax.Constant x) loc
+     | Constant -> locate (Syntax.TTc (TT.Syntax.Constant x)) loc
      | Constructor k ->
         if k = 0 then locate (Syntax.Constructor (x, [])) loc
         else error ~loc (ArityMismatch (x, 0, k))
@@ -538,9 +585,6 @@ let rec comp ~yield bound (c',loc) =
         if k = 0 then locate (Syntax.Operation (x, [])) loc
         else error ~loc (ArityMismatch (x, 0, k))
      end
-
-  | Input.Type ->
-     locate Syntax.Type loc
 
   | Input.Yield c ->
      if yield
@@ -576,47 +620,6 @@ let rec comp ~yield bound (c',loc) =
   | Input.Tuple cs ->
      let lst = List.map (comp ~yield bound) cs in
      locate (Syntax.Tuple lst) loc
-
-  | Input.CongrProd (e1, e2, e3) ->
-     let e1 = comp ~yield bound e1
-     and e2 = comp ~yield bound e2
-     and e3 = comp ~yield bound e3 in
-     locate (Syntax.CongrProd (e1, e2, e3)) loc
-
-  | Input.CongrApply (e1, e2, e3, e4, e5) ->
-     let e1 = comp ~yield bound e1
-     and e2 = comp ~yield bound e2
-     and e3 = comp ~yield bound e3
-     and e4 = comp ~yield bound e4
-     and e5 = comp ~yield bound e5 in
-     locate (Syntax.CongrApply (e1, e2, e3, e4, e5)) loc
-
-  | Input.CongrLambda (e1, e2, e3, e4) ->
-     let e1 = comp ~yield bound e1
-     and e2 = comp ~yield bound e2
-     and e3 = comp ~yield bound e3
-     and e4 = comp ~yield bound e4 in
-     locate (Syntax.CongrLambda (e1, e2, e3, e4)) loc
-
-  | Input.CongrEq (e1, e2, e3) ->
-     let e1 = comp ~yield bound e1
-     and e2 = comp ~yield bound e2
-     and e3 = comp ~yield bound e3 in
-     locate (Syntax.CongrEq (e1, e2, e3)) loc
-
-  | Input.CongrRefl (e1, e2) ->
-     let e1 = comp ~yield bound e1
-     and e2 = comp ~yield bound e2 in
-     locate (Syntax.CongrRefl (e1, e2)) loc
-
-  | Input.BetaStep (e1, e2, e3, e4, e5) ->
-     let e1 = comp ~yield bound e1
-     and e2 = comp ~yield bound e2
-     and e3 = comp ~yield bound e3
-     and e4 = comp ~yield bound e4
-     and e5 = comp ~yield bound e5 in
-     locate (Syntax.BetaStep (e1, e2, e3, e4, e5)) loc
-
   | Input.String s ->
      locate (Syntax.String s) loc
 
@@ -681,7 +684,7 @@ and letrec_clauses ~loc ~yield bound lst =
 
 and let_clause ~yield bound ys c =
   let rec fold bound = function
-    | [] ->       
+    | [] ->
        comp ~yield bound c
     | y :: ys ->
        let bound = Ctx.add_lexical y bound in
@@ -727,7 +730,7 @@ and spine ~yield bound ((c',loc) as c) cs =
        | Variable (i,_) ->
           locate (Syntax.Bound i) loc, cs
        | Constant ->
-          locate (Syntax.Constant x) loc, cs
+          locate (Syntax.TTc (TT.Syntax.Constant x)) loc, cs
        | Constructor k ->
           let cs', cs = split x k cs in
           data ~loc ~yield bound x cs', cs

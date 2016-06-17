@@ -72,7 +72,7 @@ let initial =
   let desugar, cmds = List.fold_left (fun (desugar, cmds) cmd ->
       let desugar, cmd = Desugar.toplevel ~basedir:Filename.current_dir_name desugar cmd in
       (desugar, cmd :: cmds))
-    (Desugar.Ctx.empty, []) Predefined.definitions
+    (Desugar.Ctx.empty, []) PredefinedTT.definitions
   in
   let cmds = List.rev cmds in
   let typing, cmds = List.fold_left (fun (typing, cmds) cmd ->

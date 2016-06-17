@@ -22,38 +22,24 @@ and ml_ty' =
 type ml_schema = ml_schema' located
 and ml_schema' = ML_Forall of Name.ty list * ml_ty
 
-(** Patterns *)
-type tt_pattern = tt_pattern' located
-and tt_pattern' =
-  | Tt_Anonymous
-  | Tt_As of tt_pattern * bound
-  | Tt_Bound of bound
-  | Tt_Type
-  | Tt_Constant of Name.ident
-  | Tt_Lambda of Name.ident * bound option * tt_pattern option * tt_pattern
-  | Tt_Apply of tt_pattern * tt_pattern
-  | Tt_Prod of Name.ident * bound option * tt_pattern option * tt_pattern
-  | Tt_Eq of tt_pattern * tt_pattern
-  | Tt_Refl of tt_pattern
-  | Tt_GenAtom of tt_pattern
-  | Tt_GenConstant of tt_pattern
 
 type pattern = pattern' located
 and pattern' =
   | Patt_Anonymous
   | Patt_As of pattern * bound
   | Patt_Bound of bound
-  | Patt_Jdg of tt_pattern * tt_pattern
+  | Patt_Jdg of TT.Syntax.jdg_pattern
   | Patt_Constructor of Name.ident * pattern list
   | Patt_Tuple of pattern list
 
 (** Desugared 'annot computations *)
 type 'annot comp = 'annot comp' located
 and 'annot comp' =
-  | Type
   | Bound of bound
   | Function of Name.ident * 'annot comp
+  | Apply of 'annot comp * 'annot comp
   | Handler of 'annot handler
+  | Yield of 'annot comp
   | Constructor of Name.ident * 'annot comp list
   | Tuple of 'annot comp list
   | Operation of Name.ident * 'annot comp list
@@ -65,28 +51,18 @@ and 'annot comp' =
   | Update of 'annot comp * 'annot comp
   | Ref of 'annot comp
   | Sequence of 'annot comp * 'annot comp
-  | Assume of (Name.ident * 'annot comp) * 'annot comp
-  | Where of 'annot comp * 'annot comp * 'annot comp
-  | Match of 'annot comp * 'annot match_case list
-  | Ascribe of 'annot comp * 'annot comp
-  | External of string
-  | Constant of Name.ident
-  | Lambda of Name.ident * 'annot comp option * 'annot comp
-  | Apply of 'annot comp * 'annot comp
-  | Prod of Name.ident * 'annot comp * 'annot comp
-  | Eq of 'annot comp * 'annot comp
-  | Refl of 'annot comp
-  | Yield of 'annot comp
-  | CongrProd of 'annot comp * 'annot comp * 'annot comp
-  | CongrApply of 'annot comp * 'annot comp * 'annot comp * 'annot comp * 'annot comp
-  | CongrLambda of 'annot comp * 'annot comp * 'annot comp * 'annot comp
-  | CongrEq of 'annot comp * 'annot comp * 'annot comp
-  | CongrRefl of 'annot comp * 'annot comp
-  | BetaStep of 'annot comp * 'annot comp * 'annot comp * 'annot comp * 'annot comp
   | String of string
-  | Occurs of 'annot comp * 'annot comp
-  | Context of 'annot comp
+  | External of string
+  | Match of 'annot comp * 'annot match_case list
+
+  | Where of 'annot comp * 'annot comp * 'annot comp
+  | Assume of (Name.ident * 'annot comp) * 'annot comp
+  | Ascribe of 'annot comp * 'annot comp
   | Natural of 'annot comp
+  | Context of 'annot comp
+  | Occurs of 'annot comp * 'annot comp
+
+  | TTc of ('annot comp) TT.Syntax.comp
 
 and 'annot let_clause = Name.ident * 'annot * 'annot comp
 

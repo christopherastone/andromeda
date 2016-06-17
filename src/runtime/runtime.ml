@@ -574,7 +574,6 @@ let print_error ~penv err ppf =
                     (print_operation ~penv op vs)
 
 
-
 let empty = {
   lexical = {
     forbidden = [] ;
@@ -680,6 +679,20 @@ let rec equal_value v1 v2 =
     | String _, (Term _ | Closure _ | Handler _ | Tag _ | Tuple _ | Ref _)
     | Ref _, (Term _ | Closure _ | Handler _ | Tag _ | Tuple _ | String _) ->
        false
+
+(* Matching *)
+
+exception Match_fail
+
+let match_update k v xvs =
+  try
+    let v' = List.assoc k xvs in
+    if equal_value v v'
+    then xvs
+    else raise Match_fail
+  with
+    Not_found ->
+      (k,v) :: xvs
 
 
 type topenv = env
