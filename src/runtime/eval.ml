@@ -22,9 +22,6 @@ let as_ref ~loc v =
   let e = Runtime.as_ref ~loc v in
   Runtime.return e
 
-(** Form a judgement *)
-(* loc:Location.t -> Jdg.shape -> Jdg.term Runtime.comp *)
-let jdg_form = EvalTT.jdg_form
 
 (** Evaluate a computation -- infer mode. *)
 (*   infer : 'annot Syntax.comp -> Runtime.value Runtime.comp *)
@@ -171,7 +168,7 @@ let rec infer {Location.thing=c'; loc} =
   | Syntax.Apply (c1, c2) ->
     infer c1 >>= begin function
       | Runtime.Term j ->
-        apply ~loc j c2
+        EvalTT.apply ~loc (check, check_ty, infer) j c2
       | Runtime.Closure f ->
         infer c2 >>= fun v ->
         Runtime.apply_closure f v
@@ -291,16 +288,6 @@ and check ({Location.thing=c';loc} as c) t_check =
       EvalTT.checkTT ~loc (check, check_ty, infer) ttc t_check
 
 
-(* apply: loc:Location.t -> Jdg.term -> 'annot Syntax.comp
-               -> Runtime.value Runtime.comp *)
-and apply ~loc h c =
-  Equal.coerce_fun ~loc h >>= function
-    | Some (h, a, _) ->
-      check c (Jdg.atom_ty a) >>= fun e ->
-      jdg_form ~loc (Jdg.Apply (h, e)) >>= fun j ->
-      Runtime.return_term j
-    | None ->
-       Jdg.errorFunctionExpected ~loc h
 
 (* sequence: loc:Location.t -> Runtime.value -> unit Runtime.comp *)
 and sequence ~loc v =

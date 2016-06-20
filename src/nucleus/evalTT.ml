@@ -132,6 +132,17 @@ let inferTT ~loc (check,check_ty,infer) ttc =
       let e = Jdg.refl_of_eq ~loc eq in
       Runtime.return_term e
 
+(* apply: loc:Location.t -> Jdg.term -> 'annot Syntax.comp
+               -> Runtime.value Runtime.comp *)
+let apply ~loc (check,_check_ty,_infer) h c =
+  Equal.coerce_fun ~loc h >>= function
+    | Some (h, a, _) ->
+      check c (Jdg.atom_ty a) >>= fun e ->
+      jdg_form ~loc (Jdg.Apply (h, e)) >>= fun j ->
+      Runtime.return_term j
+    | None ->
+       Jdg.errorFunctionExpected ~loc h
+
 
 (* XXX: Copy and paste from eval.ml *)
 let check_default_v ~loc v t_check =
