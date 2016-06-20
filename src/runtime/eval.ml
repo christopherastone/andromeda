@@ -7,11 +7,6 @@ let (>>=) = Runtime.bind
     and fails otherwise. *)
 let as_term = EvalTT.as_term
 
-
-(** Returns the atom with its natural type in [ctx] *)
-(* as_atom: loc:Location.t -> Runtime.value -> Jdg.term Runtime.comp *)
-let as_atom = EvalTT.as_atom
-
 (* as_handler: loc:Location.t -> Runtime.value -> Runtime.handler Runtime.comp *)
 let as_handler ~loc v =
   let e = Runtime.as_handler ~loc v in
@@ -131,24 +126,6 @@ let rec infer {Location.thing=c'; loc} =
      sequence ~loc v >>= fun () ->
      infer c2
 
-  | Syntax.Assume ((x, t), c) ->
-     check_ty t >>= fun t ->
-     Runtime.add_free ~loc x t (fun _ ->
-       infer c)
-
-  | Syntax.Where (c1, c2, c3) ->
-    infer c2 >>= as_atom ~loc >>= fun a ->
-    infer c1 >>= as_term ~loc:(c1.Location.loc) >>= fun je ->
-    begin match Jdg.occurs a je with
-    | None ->
-       check c3 (Jdg.atom_ty a) >>= fun _ ->
-       Runtime.return_term je
-    | Some a ->
-       check c3 (Jdg.atom_ty a) >>= fun js ->
-       let j = Jdg.substitute ~loc je a js in
-       Runtime.return_term j
-    end
-
   | Syntax.Match (c, cases) ->
      infer c >>=
      match_cases ~loc cases infer
@@ -158,12 +135,6 @@ let rec infer {Location.thing=c'; loc} =
        | None -> Runtime.(error ~loc (UnknownExternal s))
        | Some v -> v loc
      end
-
-  | Syntax.Ascribe (c1, c2) ->
-     check_ty c2 >>= fun t ->
-     check c1 t >>=
-     Runtime.return_term
-
 
   | Syntax.Apply (c1, c2) ->
     infer c1 >>= begin function
@@ -185,31 +156,6 @@ let rec infer {Location.thing=c'; loc} =
   | Syntax.String s ->
     Runtime.return (Runtime.mk_string s)
 
-  | Syntax.Occurs (c1,c2) ->
-    infer c1 >>= as_atom ~loc >>= fun a ->
-    infer c2 >>= as_term ~loc >>= fun j ->
-    begin match Jdg.occurs a j with
-      | Some jx ->
-        let j = Jdg.term_of_ty (Jdg.atom_ty jx) in
-        Runtime.return (Predefined.from_option (Some (Runtime.mk_term j)))
-      | None ->
-        Runtime.return (Predefined.from_option None)
-    end
-
-  | Syntax.Context c ->
-    infer c >>= as_term ~loc >>= fun j ->
-    let ctx = Jdg.contextof j in
-    let xts = Jdg.Ctx.elements ctx in
-    let js = List.map (fun j -> Runtime.mk_term (Jdg.atom_term ~loc j)) xts in
-    Runtime.return (Predefined.mk_list js)
-
-  | Syntax.Natural c ->
-    infer c >>= as_term ~loc >>= fun j ->
-    Runtime.lookup_typing_signature >>= fun signature ->
-    let eq = Jdg.natural_eq ~loc signature j in
-    let e = Jdg.refl_of_eq_ty ~loc eq in
-    Runtime.return_term e
-
 and check_default_v ~loc v t_check =
   as_term ~loc v >>= fun je ->
   Equal.coerce ~loc je t_check >>=
@@ -228,11 +174,9 @@ and check ({Location.thing=c';loc} as c) t_check =
   | Syntax.Bound _
   | Syntax.Function _
   | Syntax.Handler _
-  | Syntax.Ascribe _
   | Syntax.External _
   | Syntax.Constructor _
   | Syntax.Tuple _
-  | Syntax.Where _
   | Syntax.With _
   | Syntax.Apply _
   | Syntax.Yield _
@@ -240,9 +184,7 @@ and check ({Location.thing=c';loc} as c) t_check =
   | Syntax.Lookup _
   | Syntax.Update _
   | Syntax.String _
-  | Syntax.Occurs _
-  | Syntax.Context _
-  | Syntax.Natural _ ->
+    ->
     (** this is the [check-infer] rule, which applies for all term formers "foo"
         that don't have a "check-foo" rule *)
 
@@ -275,10 +217,6 @@ and check ({Location.thing=c';loc} as c) t_check =
     infer c1 >>= fun v ->
     Runtime.now ~loc x v (check c2 t_check)
 
-  | Syntax.Assume ((x, t), c) ->
-     check_ty t >>= fun t ->
-     Runtime.add_free ~loc x t (fun _ ->
-     check c t_check)
 
   | Syntax.Match (c, cases) ->
      infer c >>=

@@ -467,13 +467,13 @@ let rec comp ~yield bound (c',loc) =
      let t = comp ~yield bound t in
      let bound = Ctx.add_lexical x bound in
      let c = comp ~yield bound c in
-     locate (Syntax.Assume ((x, t), c)) loc
+     locate (Syntax.TTc (TT.Syntax.Assume ((x, t), c))) loc
 
   | Input.Where (c1, c2, c3) ->
      let c1 = comp ~yield bound c1
      and c2 = comp ~yield bound c2
      and c3 = comp ~yield bound c3 in
-     locate (Syntax.Where (c1, c2, c3)) loc
+     locate (Syntax.TTc (TT.Syntax.Where (c1, c2, c3))) loc
 
   | Input.Match (c, cases) ->
      let c = comp ~yield bound c
@@ -483,7 +483,7 @@ let rec comp ~yield bound (c',loc) =
   | Input.Ascribe (c, t) ->
      let t = comp ~yield bound t
      and c = comp ~yield bound c in
-     locate (Syntax.Ascribe (c, t)) loc
+     locate (Syntax.TTc (TT.Syntax.Ascribe (c, t))) loc
 
   | Input.External s ->
      locate (Syntax.External s) loc
@@ -625,16 +625,16 @@ let rec comp ~yield bound (c',loc) =
 
   | Input.Context c ->
      let c = comp ~yield bound c in
-     locate (Syntax.Context c) loc
+     locate (Syntax.TTc (TT.Syntax.Context c)) loc
 
   | Input.Occurs (c1,c2) ->
      let c1 = comp ~yield bound c1
      and c2 = comp ~yield bound c2 in
-     locate (Syntax.Occurs (c1,c2)) loc
+     locate (Syntax.TTc (TT.Syntax.Occurs (c1,c2))) loc
 
   | Input.Natural c ->
      let c = comp ~yield bound c in
-     locate (Syntax.Natural c) loc
+     locate (Syntax.TTc (TT.Syntax.Natural c)) loc
 
 and let_clauses ~loc ~yield bound lst =
   let rec fold bound' lst' = function

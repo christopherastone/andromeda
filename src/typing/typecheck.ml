@@ -140,7 +140,7 @@ let match_op_case xs ps popt argts m =
 let rec comp ({Location.thing=c; loc} : _ Syntax.comp) : (Mlty.ty_schema Syntax.comp * Mlty.ty) Tyenv.tyenvM =
   match c with
   | Syntax.TTc ttc ->
-      TypecheckTT.compTT ~loc (check_comp) ttc
+      TypecheckTT.compTT ~loc (comp, check_comp) ttc
 
   | Syntax.Bound k ->
     Tyenv.lookup_var k >>= fun t ->
@@ -248,26 +248,10 @@ let rec comp ({Location.thing=c; loc} : _ Syntax.comp) : (Mlty.ty_schema Syntax.
     comp c2 >>= fun (c2, t) ->
     return (locate ~loc (Syntax.Sequence (c1, c2)), t)
 
-  | Syntax.Assume ((x, a), c) ->
-    check_comp a Mlty.Jdg >>= fun a ->
-    Tyenv.add_var x Mlty.Jdg (comp c) >>= fun (c, t) ->
-    return (locate ~loc (Syntax.Assume ((x, a), c)), t)
-
-  | Syntax.Where (c1, c2, c3) ->
-    check_comp c1 Mlty.Jdg >>= fun c1 ->
-    check_comp c2 Mlty.Jdg >>= fun c2 ->
-    check_comp c3 Mlty.Jdg >>= fun c3 ->
-    Tyenv.return (locate ~loc (Syntax.Where (c1, c2, c3)), Mlty.Jdg)
-
   | Syntax.Match (c, cases) ->
     comp c >>= fun (c, tc) ->
     match_cases ~loc tc cases >>= fun (cases, t) ->
     return (locate ~loc (Syntax.Match (c, cases)), t)
-
-  | Syntax.Ascribe (c1, c2) ->
-    check_comp c1 Mlty.Jdg >>= fun c1 ->
-    check_comp c2 Mlty.Jdg >>= fun c2 ->
-    Tyenv.return (locate ~loc (Syntax.Ascribe (c1, c2)), Mlty.Jdg)
 
   | Syntax.External s ->
     begin match External.lookup_ty s with
@@ -294,21 +278,6 @@ let rec comp ({Location.thing=c; loc} : _ Syntax.comp) : (Mlty.ty_schema Syntax.
     Tyenv.return (locate ~loc (Syntax.Yield c), b)
 
   | Syntax.String s -> Tyenv.return (locate ~loc (Syntax.String s), Mlty.String)
-
-  | Syntax.Occurs (c1, c2) ->
-    check_comp c1 Mlty.Jdg >>= fun c1 ->
-    check_comp c2 Mlty.Jdg >>= fun c2 ->
-    Tyenv.predefined_type Name.Predefined.option [Mlty.Jdg] >>= fun t ->
-    return (locate ~loc (Syntax.Occurs (c1, c2)), t)
-
-  | Syntax.Context c ->
-    check_comp c Mlty.Jdg >>= fun c ->
-    Tyenv.predefined_type Name.Predefined.list [Mlty.Jdg] >>= fun t ->
-    return (locate ~loc (Syntax.Context c), t)
-
-  | Syntax.Natural c ->
-    check_comp c Mlty.Jdg >>= fun c ->
-    return (locate ~loc (Syntax.Natural c), Mlty.Jdg)
 
 and check_comp c t =
   comp c >>= fun (c, t') ->

@@ -1,5 +1,8 @@
 
 let (>>=) = Tyenv.(>>=)
+let return = Tyenv.return
+
+let locate ~loc v = Location.locate v loc
 
 (* tt_pattern : ('a * Mlty.ty) list -> TT.Syntax.tt_pattern -> unit Tyenv.tyenv *)
 let rec tt_pattern xs {Location.thing = p; loc} =
@@ -43,9 +46,8 @@ let tt_jdg xs (p1,p2) =
 
 
 
-let locate ~loc v = Location.locate v loc
 
-let compTT ~loc (check_comp) ttc : (Mlty.ty_schema Syntax.comp * Mlty.ty) Tyenv.tyenvM =
+let compTT ~loc (comp,check_comp) ttc : (Mlty.ty_schema Syntax.comp * Mlty.ty) Tyenv.tyenvM =
   let wrap ttc' = locate ~loc (Syntax.TTc ttc') in
   match ttc with
     | TT.Syntax.Type ->
@@ -117,3 +119,34 @@ let compTT ~loc (check_comp) ttc : (Mlty.ty_schema Syntax.comp * Mlty.ty) Tyenv.
       Tyenv.return (wrap (TT.Syntax.BetaStep (c1, c2, c3, c4, c5)), Mlty.Jdg)
 
 
+    | TT.Syntax.Assume ((x, a), c) ->
+      check_comp a Mlty.Jdg >>= fun a ->
+      Tyenv.add_var x Mlty.Jdg (comp c) >>= fun (c, t) ->
+      return (wrap (TT.Syntax.Assume ((x, a), c)), t)
+
+    | TT.Syntax.Where (c1, c2, c3) ->
+      check_comp c1 Mlty.Jdg >>= fun c1 ->
+      check_comp c2 Mlty.Jdg >>= fun c2 ->
+      check_comp c3 Mlty.Jdg >>= fun c3 ->
+      Tyenv.return (wrap (TT.Syntax.Where (c1, c2, c3)), Mlty.Jdg)
+
+    | TT.Syntax.Ascribe (c1, c2) ->
+      check_comp c1 Mlty.Jdg >>= fun c1 ->
+      check_comp c2 Mlty.Jdg >>= fun c2 ->
+      Tyenv.return (wrap (TT.Syntax.Ascribe (c1, c2)), Mlty.Jdg)
+
+
+    | TT.Syntax.Occurs (c1, c2) ->
+      check_comp c1 Mlty.Jdg >>= fun c1 ->
+      check_comp c2 Mlty.Jdg >>= fun c2 ->
+      Tyenv.predefined_type Name.Predefined.option [Mlty.Jdg] >>= fun t ->
+      return (wrap (TT.Syntax.Occurs (c1, c2)), t)
+
+    | TT.Syntax.Context c ->
+      check_comp c Mlty.Jdg >>= fun c ->
+      Tyenv.predefined_type Name.Predefined.list [Mlty.Jdg] >>= fun t ->
+      return (wrap (TT.Syntax.Context c), t)
+
+    | TT.Syntax.Natural c ->
+      check_comp c Mlty.Jdg >>= fun c ->
+      return (wrap (TT.Syntax.Natural c), Mlty.Jdg)

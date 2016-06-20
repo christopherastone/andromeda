@@ -132,6 +132,56 @@ let inferTT ~loc (check,check_ty,infer) ttc =
       let e = Jdg.refl_of_eq ~loc eq in
       Runtime.return_term e
 
+
+    | TT.Syntax.Ascribe (c1, c2) ->
+       check_ty c2 >>= fun t ->
+       check c1 t >>=
+       Runtime.return_term
+
+    | TT.Syntax.Assume ((x, t), c) ->
+       check_ty t >>= fun t ->
+       Runtime.add_free ~loc x t (fun _ ->
+         infer c)
+
+    | TT.Syntax.Where (c1, c2, c3) ->
+      infer c2 >>= as_atom ~loc >>= fun a ->
+      infer c1 >>= as_term ~loc:(c1.Location.loc) >>= fun je ->
+      begin match Jdg.occurs a je with
+      | None ->
+         check c3 (Jdg.atom_ty a) >>= fun _ ->
+         Runtime.return_term je
+      | Some a ->
+         check c3 (Jdg.atom_ty a) >>= fun js ->
+         let j = Jdg.substitute ~loc je a js in
+         Runtime.return_term j
+      end
+
+
+    | TT.Syntax.Occurs (c1,c2) ->
+      infer c1 >>= as_atom ~loc >>= fun a ->
+      infer c2 >>= as_term ~loc >>= fun j ->
+      begin match Jdg.occurs a j with
+        | Some jx ->
+          let j = Jdg.term_of_ty (Jdg.atom_ty jx) in
+          Runtime.return (Predefined.from_option (Some (Runtime.mk_term j)))
+        | None ->
+          Runtime.return (Predefined.from_option None)
+      end
+
+    | TT.Syntax.Context c ->
+      infer c >>= as_term ~loc >>= fun j ->
+      let ctx = Jdg.contextof j in
+      let xts = Jdg.Ctx.elements ctx in
+      let js = List.map (fun j -> Runtime.mk_term (Jdg.atom_term ~loc j)) xts in
+      Runtime.return (Predefined.mk_list js)
+
+    | TT.Syntax.Natural c ->
+      infer c >>= as_term ~loc >>= fun j ->
+      Runtime.lookup_typing_signature >>= fun signature ->
+      let eq = Jdg.natural_eq ~loc signature j in
+      let e = Jdg.refl_of_eq_ty ~loc eq in
+      Runtime.return_term e
+
 (* apply: loc:Location.t -> Jdg.term -> 'annot Syntax.comp
                -> Runtime.value Runtime.comp *)
 let apply ~loc (check,_check_ty,_infer) h c =
@@ -199,7 +249,12 @@ let checkTT ~loc (check, check_ty, infer) ttc t_check =
     | TT.Syntax.CongrLambda _
     | TT.Syntax.CongrEq _
     | TT.Syntax.CongrRefl _
-    | TT.Syntax.BetaStep _ ->
+    | TT.Syntax.BetaStep _
+    | TT.Syntax.Where _
+    | TT.Syntax.Ascribe _
+    | TT.Syntax.Occurs _
+    | TT.Syntax.Context _
+    | TT.Syntax.Natural _ ->
         check_default ~loc (check, check_ty, infer) ttc t_check
 
     | TT.Syntax.Lambda (x,u,c) ->
@@ -224,4 +279,8 @@ let checkTT ~loc (check, check_ty, infer) ttc t_check =
             end
         end
 
+    | TT.Syntax.Assume ((x, t), c) ->
+       check_ty t >>= fun t ->
+       Runtime.add_free ~loc x t (fun _ ->
+       check c t_check)
 

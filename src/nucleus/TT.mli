@@ -37,6 +37,12 @@ module Syntax : sig
     | CongrEq of 'annotcomp * 'annotcomp * 'annotcomp
     | CongrRefl of 'annotcomp * 'annotcomp
     | BetaStep of 'annotcomp * 'annotcomp * 'annotcomp * 'annotcomp * 'annotcomp
+    | Where of 'annotcomp * 'annotcomp * 'annotcomp
+    | Assume of (Name.ident * 'annotcomp) * 'annotcomp
+    | Ascribe of 'annotcomp * 'annotcomp
+    | Natural of 'annotcomp
+    | Context of 'annotcomp
+    | Occurs of 'annotcomp * 'annotcomp
 end
 
 

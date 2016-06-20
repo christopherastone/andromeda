@@ -55,13 +55,6 @@ and 'annot comp' =
   | External of string
   | Match of 'annot comp * 'annot match_case list
 
-  | Where of 'annot comp * 'annot comp * 'annot comp
-  | Assume of (Name.ident * 'annot comp) * 'annot comp
-  | Ascribe of 'annot comp * 'annot comp
-  | Natural of 'annot comp
-  | Context of 'annot comp
-  | Occurs of 'annot comp * 'annot comp
-
   | TTc of ('annot comp) TT.Syntax.comp
 
 and 'annot let_clause = Name.ident * 'annot * 'annot comp
