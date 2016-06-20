@@ -14,5 +14,9 @@ Constant plus_S is declared.
 
 
 File "./error-beta-nat.m31", line 15, characters 4-19:
-failed to check that ⊢ S (S Z) : N and ⊢ plus (S Z) (S (S Z)) : N
-are equal
+Failed to check that
+   ⊢ S (S Z) : N
+and
+   ⊢ plus (S Z) (S (S Z)) : N
+are equal.
+

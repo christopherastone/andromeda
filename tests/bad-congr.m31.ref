@@ -1,4 +1,4 @@
-Successfully failed command with runtime error:
+Successfully failed command with judgment error:
 File "./bad-congr.m31", line 2, characters 17-20:
 expected an atom but got ⊢ Type : Type
 

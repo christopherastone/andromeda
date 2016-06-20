@@ -54,6 +54,22 @@ type error =
   | RuleInputMismatch of string * TT.ty * string * TT.ty * string
   | RuleInputMismatchTerm of string * TT.term * string * TT.term * string
 
+   (* These were located in Runtime before the refactoring *)
+  | ExpectedAtom of term
+  | AnnotationMismatch of ty * ty
+  | TypeMismatchCheckingMode of term * ty
+  | EqualityFail of term * term
+  | InvalidEqual of ty
+  | EqualityTypeExpected of ty
+  | InvalidAsEquality of ty
+  | ProductExpected of ty
+  | InvalidAsProduct of ty
+  | FunctionExpected of term
+  | InvalidConvertible of ty * ty * eq_ty
+  | InvalidCoerce of ty * term
+  | InvalidFunConvertible of ty * eq_ty
+  | InvalidFunCoerce of term
+
 exception Error of error Location.located
 
 let error ~loc err = Pervasives.raise (Error (Location.locate err loc))
@@ -390,6 +406,73 @@ let print_error ~penv err ppf = match err with
   | RuleInputMismatchTerm (rule, e1, desc1, e2, desc2) ->
     Format.fprintf ppf "@[<v>In the %s rule, the following terms should be identical:@,   @[<hov>%t@]@,(%s) and@,   @[<hov>%t@]@,(%s)@]@."
       rule (TT.print_term ~penv e1) desc1 (TT.print_term ~penv e2) desc2
+
+
+  | ExpectedAtom j ->
+     Format.fprintf ppf "expected an atom but got %t"
+     (print_term ~penv:penv j)
+
+  | AnnotationMismatch (t1, t2) ->
+      Format.fprintf ppf
+      "@[<v>The type annotation is@,   @[<hov>%t@]@,but the surroundings imply it should be@,   @[<hov>%t@].@]"
+                    (print_ty ~penv:penv t1)
+                    (print_ty ~penv:penv t2)
+
+  | TypeMismatchCheckingMode (v, t) ->
+      Format.fprintf ppf "The term@,   @[<hov>%t@]@,is expected by its surroundings to have type@,   @[<hov>%t@]"
+                    (print_term ~penv:penv v)
+                    (print_ty ~penv:penv t)
+
+  | EqualityFail (e1, e2) ->
+      Format.fprintf ppf "@[<v>Failed to check that@,   @[<hov>%t@]@,and@,   @[<hov>%t@]@ are equal.@]@."
+                    (print_term ~penv:penv e1)
+                    (print_term ~penv:penv e2)
+
+  | InvalidEqual j ->
+     Format.fprintf ppf "this should be a witness of %t"
+                    (print_ty ~penv:penv j)
+
+  | EqualityTypeExpected j ->
+     Format.fprintf ppf "expected an equality type but got@ %t"
+                    (print_ty ~penv:penv j)
+
+  | InvalidAsEquality j ->
+     Format.fprintf ppf "this should be an equality between %t and an equality"
+                    (print_ty ~penv:penv j)
+
+  | ProductExpected j ->
+     Format.fprintf ppf "expected a product but got@ %t"
+                    (print_ty ~penv:penv j)
+
+  | InvalidAsProduct j ->
+     Format.fprintf ppf "this should be an equality between %t and a product"
+                    (print_ty ~penv:penv j)
+
+  | FunctionExpected t ->
+     Format.fprintf ppf "@[<v>Application of the non-function:@    @[<hov>%t@]@]@."
+                    (print_term ~penv:penv t)
+
+  | InvalidConvertible (t1, t2, eq) ->
+     Format.fprintf ppf "expected a witness of equality between %t and %t but got %t"
+                    (print_ty ~penv t1)
+                    (print_ty ~penv t2)
+                    (print_eq_ty ~penv eq)
+
+  | InvalidCoerce (t, e) ->
+     Format.fprintf ppf "expected a term of type %t but got %t"
+                    (print_ty ~penv t)
+                    (print_term ~penv e)
+
+  | InvalidFunConvertible (t, eq) ->
+     Format.fprintf ppf "expected a witness of equality between %t and a product but got %t"
+                    (print_ty ~penv t)
+                    (print_eq_ty ~penv eq)
+
+  | InvalidFunCoerce e ->
+     Format.fprintf ppf "expected a term of a product type got %t"
+                    (print_term ~penv e)
+
+
 
 (** Destructors *)
 type 'a abstraction = atom * 'a
@@ -864,3 +947,46 @@ struct
     Json.of_ty "Jdg.term" ["context", context ctx;
                            "type", TT.Json.ty ty]
 end
+
+
+let errorExpectedAtom ~loc term =
+  error ~loc (ExpectedAtom term)
+
+let errorAnnotationMismatch ~loc ty1 ty2 =
+  error ~loc (AnnotationMismatch (ty1,ty2))
+
+let errorTypeMismatchCheckingMode ~loc term ty =
+  error ~loc (TypeMismatchCheckingMode (term,ty))
+
+let errorEqualityFail ~loc term1 term2 =
+  error ~loc (EqualityFail (term1, term2))
+
+let errorInvalidEqual ~loc ty =
+  error ~loc (InvalidEqual ty)
+
+let errorEqualityTypeExpected ~loc ty =
+  error ~loc (EqualityTypeExpected ty)
+
+let errorInvalidAsEquality ~loc ty =
+  error ~loc (InvalidAsEquality ty)
+
+let errorProductExpected ~loc ty =
+  error ~loc (ProductExpected ty)
+
+let errorInvalidAsProduct ~loc ty =
+  error ~loc (InvalidAsProduct ty)
+
+let errorFunctionExpected ~loc term =
+  error ~loc (FunctionExpected term)
+
+let errorInvalidConvertible ~loc ty1 ty2 eq_ty =
+  error ~loc (InvalidConvertible (ty1, ty2, eq_ty))
+
+let errorInvalidCoerce ~loc ty term =
+  error ~loc (InvalidCoerce (ty, term))
+
+let errorInvalidFunConvertible ~loc ty eq_ty =
+  error ~loc (InvalidFunConvertible (ty, eq_ty))
+
+let errorInvalidFunCoerce ~loc term =
+  error ~loc (InvalidFunCoerce term)

@@ -59,34 +59,20 @@ val print_value : ?max_level:Level.t -> penv:TT.print_env -> value -> Format.for
 
 (** The runtime errors *)
 type error =
-  | ExpectedAtom of Jdg.term
   | UnknownExternal of string
   | UnknownConfig of string
   | Inapplicable of value
-  | AnnotationMismatch of Jdg.ty * Jdg.ty
-  | TypeMismatchCheckingMode of Jdg.term * Jdg.ty
-  | EqualityFail of Jdg.term * Jdg.term
   | UnannotatedLambda of Name.ident
   | MatchFail of value
   | FailureFail of value
-  | InvalidEqual of Jdg.ty
-  | EqualityTypeExpected of Jdg.ty
-  | InvalidAsEquality of Jdg.ty
-  | ProductExpected of Jdg.ty
-  | InvalidAsProduct of Jdg.ty
   | ListExpected of value
   | OptionExpected of value
   | TermExpected of value
   | ClosureExpected of value
   | HandlerExpected of value
-  | FunctionExpected of Jdg.term
   | RefExpected of value
   | StringExpected of value
   | CoercibleExpected of value
-  | InvalidConvertible of Jdg.ty * Jdg.ty * Jdg.eq_ty
-  | InvalidCoerce of Jdg.ty * Jdg.term
-  | InvalidFunConvertible of Jdg.ty * Jdg.eq_ty
-  | InvalidFunCoerce of Jdg.term
   | UnhandledOperation of Name.operation * value list
 
 (** The exception that is raised on runtime error *)

@@ -24,7 +24,7 @@ val f : judgment
 
 ⊢ λ (n : Nat), iszero (succ n) : Nat → Nat
 
-Successfully failed command with runtime error:
+Successfully failed command with judgment error:
 File "./tricky_spine.m31", line 30, characters 6-6: The term
    ⊢ λ (n : Nat), iszero (succ n) : Nat → Bool
 is expected by its surroundings to have type

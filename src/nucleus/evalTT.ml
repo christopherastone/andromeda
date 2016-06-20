@@ -19,7 +19,7 @@ let as_atom ~loc v =
   as_term ~loc v >>= fun j ->
   match Jdg.shape j with
     | Jdg.Atom x -> Runtime.return x
-    | _ -> Runtime.(error ~loc (ExpectedAtom j))
+    | _ -> Jdg.errorExpectedAtom ~loc j
 
 let inferTT ~loc (check,check_ty,infer) ttc =
   match ttc with
@@ -139,7 +139,7 @@ let check_default_v ~loc v t_check =
   Equal.coerce ~loc je t_check >>=
     begin function
       | Some je -> Runtime.return je
-      | None -> Runtime.(error ~loc (TypeMismatchCheckingMode (je, t_check)))
+      | None -> Jdg.errorTypeMismatchCheckingMode ~loc je t_check
   end
 
 let check_default ~loc (check, check_ty, infer) ttc t_check =
@@ -151,15 +151,14 @@ let check_default ~loc (check, check_ty, infer) ttc t_check =
                    -> Jdg.term Runtime.comp *)
 let check_lambda ~loc (check, check_ty, _) t_check x u c =
   Equal.as_prod ~loc t_check >>= function
-    | None -> Runtime.(error ~loc (ProductExpected t_check))
+    | None -> Jdg.errorProductExpected ~loc t_check
     | Some (eq, a, b) ->
       begin match u with
         | Some u ->
           check_ty u >>= fun ju ->
           Equal.equal_ty ~loc:(u.Location.loc) ju (Jdg.atom_ty a) >>= begin function
             | Some equ -> Runtime.return (ju, equ)
-            | None ->
-              Runtime.(error ~loc:(u.Location.loc) (AnnotationMismatch (ju, (Jdg.atom_ty a))))
+            | None -> Jdg.errorAnnotationMismatch ~loc:(u.Location.loc) ju (Jdg.atom_ty a)
             end
         | None ->
           let ju = Jdg.atom_ty a in
@@ -197,15 +196,15 @@ let checkTT ~loc (check, check_ty, infer) ttc t_check =
 
     | TT.Syntax.Refl c ->
       Equal.as_eq ~loc t_check >>= begin function
-        | None -> Runtime.(error ~loc (EqualityTypeExpected t_check))
+        | None -> Jdg.errorEqualityTypeExpected ~loc t_check
         | Some (eq, e1, e2) ->
           let t = Jdg.typeof e1 in
           check c t >>= fun e ->
           Equal.equal ~loc e e1 >>= begin function
-            | None -> Runtime.(error ~loc (EqualityFail (e, e1)))
+            | None -> Jdg.errorEqualityFail ~loc e e1
             | Some eq1 ->
               Equal.equal ~loc e e2 >>= begin function
-                | None -> Runtime.(error ~loc (EqualityFail (e, e2)))
+                | None -> Jdg.errorEqualityFail ~loc e e2
                 | Some eq2 ->
                   let j = Jdg.mk_refl ~loc eq1 eq2 in
                   let j = Jdg.convert ~loc j (Jdg.symmetry_ty eq) in

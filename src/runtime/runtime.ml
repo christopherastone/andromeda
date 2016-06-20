@@ -78,34 +78,20 @@ type 'a toplevel = env -> 'a * env
 
 (** Error reporting *)
 type error =
-  | ExpectedAtom of Jdg.term
   | UnknownExternal of string
   | UnknownConfig of string
   | Inapplicable of value
-  | AnnotationMismatch of Jdg.ty * Jdg.ty
-  | TypeMismatchCheckingMode of Jdg.term * Jdg.ty
-  | EqualityFail of Jdg.term * Jdg.term
   | UnannotatedLambda of Name.ident
   | MatchFail of value
   | FailureFail of value
-  | InvalidEqual of Jdg.ty
-  | EqualityTypeExpected of Jdg.ty
-  | InvalidAsEquality of Jdg.ty
-  | ProductExpected of Jdg.ty
-  | InvalidAsProduct of Jdg.ty
   | ListExpected of value
   | OptionExpected of value
   | TermExpected of value
   | ClosureExpected of value
   | HandlerExpected of value
-  | FunctionExpected of Jdg.term
   | RefExpected of value
   | StringExpected of value
   | CoercibleExpected of value
-  | InvalidConvertible of Jdg.ty * Jdg.ty * Jdg.eq_ty
-  | InvalidCoerce of Jdg.ty * Jdg.term
-  | InvalidFunConvertible of Jdg.ty * Jdg.eq_ty
-  | InvalidFunCoerce of Jdg.term
   | UnhandledOperation of Name.operation * value list
 
 exception Error of error Location.located
@@ -461,10 +447,6 @@ let print_operation ~penv op vs ppf =
 let print_error ~penv err ppf =
   match err with
 
-  | ExpectedAtom j ->
-     Format.fprintf ppf "expected an atom but got %t"
-                    (Jdg.print_term ~penv:penv j)
-
   | UnknownExternal s ->
      Format.fprintf ppf "unknown external %s" s
 
@@ -473,22 +455,6 @@ let print_error ~penv err ppf =
 
   | Inapplicable v ->
      Format.fprintf ppf "cannot apply %s" (name_of v)
-
-  | AnnotationMismatch (t1, t2) ->
-      Format.fprintf ppf
-      "@[<v>The type annotation is@,   @[<hov>%t@]@,but the surroundings imply it should be@,   @[<hov>%t@].@]"
-                    (Jdg.print_ty ~penv:penv t1)
-                    (Jdg.print_ty ~penv:penv t2)
-
-  | TypeMismatchCheckingMode (v, t) ->
-      Format.fprintf ppf "The term@,   @[<hov>%t@]@,is expected by its surroundings to have type@,   @[<hov>%t@]"
-                    (Jdg.print_term ~penv:penv v)
-                    (Jdg.print_ty ~penv:penv t)
-
-  | EqualityFail (e1, e2) ->
-     Format.fprintf ppf "failed to check that@ %t@ and@ %t@ are equal"
-                    (Jdg.print_term ~penv:penv e1)
-                    (Jdg.print_term ~penv:penv e2)
 
   | UnannotatedLambda x ->
      Format.fprintf ppf "cannot infer the type of@ %t" (Name.print_ident x)
@@ -500,30 +466,6 @@ let print_error ~penv err ppf =
   | FailureFail v ->
      Format.fprintf ppf "expected to fail but computed@ %t"
                     (print_value ~penv v)
-
-  | InvalidEqual j ->
-     Format.fprintf ppf "this should be a witness of %t"
-                    (Jdg.print_ty ~penv:penv j)
-
-  | EqualityTypeExpected j ->
-     Format.fprintf ppf "expected an equality type but got@ %t"
-                    (Jdg.print_ty ~penv:penv j)
-
-  | InvalidAsEquality j ->
-     Format.fprintf ppf "this should be an equality between %t and an equality"
-                    (Jdg.print_ty ~penv:penv j)
-
-  | ProductExpected j ->
-     Format.fprintf ppf "expected a product but got@ %t"
-                    (Jdg.print_ty ~penv:penv j)
-
-  | InvalidAsProduct j ->
-     Format.fprintf ppf "this should be an equality between %t and a product"
-                    (Jdg.print_ty ~penv:penv j)
-
-  | FunctionExpected t ->
-     Format.fprintf ppf "@[<v>Application of the non-function:@    @[<hov>%t@]@]@."
-                    (Jdg.print_term ~penv:penv t)
 
   | ListExpected v ->
      Format.fprintf ppf "expected a list but got %s" (name_of v)
@@ -548,26 +490,6 @@ let print_error ~penv err ppf =
 
   | CoercibleExpected v ->
     Format.fprintf ppf "expected a coercible but got %s" (name_of v)
-
-  | InvalidConvertible (t1, t2, eq) ->
-     Format.fprintf ppf "expected a witness of equality between %t and %t but got %t"
-                    (Jdg.print_ty ~penv t1)
-                    (Jdg.print_ty ~penv t2)
-                    (Jdg.print_eq_ty ~penv eq)
-
-  | InvalidCoerce (t, e) ->
-     Format.fprintf ppf "expected a term of type %t but got %t"
-                    (Jdg.print_ty ~penv t)
-                    (Jdg.print_term ~penv e)
-
-  | InvalidFunConvertible (t, eq) ->
-     Format.fprintf ppf "expected a witness of equality between %t and a product but got %t"
-                    (Jdg.print_ty ~penv t)
-                    (Jdg.print_eq_ty ~penv eq)
-
-  | InvalidFunCoerce e ->
-     Format.fprintf ppf "expected a term of a product type got %t"
-                    (Jdg.print_term ~penv e)
 
   | UnhandledOperation (op, vs) ->
      Format.fprintf ppf "@[<v>Unhandled operation:@.   @[<hov>%t@]@]@."

@@ -207,3 +207,20 @@ sig
 
   val ty : ty -> Json.t
 end
+
+
+val errorExpectedAtom : loc:Location.t -> term -> 'a
+val errorAnnotationMismatch: loc:Location.t -> ty -> ty -> 'a
+val errorTypeMismatchCheckingMode: loc:Location.t -> term -> ty  -> 'a
+val errorEqualityFail: loc:Location.t -> term -> term -> 'a
+val errorInvalidEqual: loc:Location.t -> ty -> 'a
+val errorEqualityTypeExpected: loc:Location.t -> ty -> 'a
+val errorInvalidAsEquality: loc:Location.t -> ty -> 'a
+val errorProductExpected: loc:Location.t -> ty -> 'a
+val errorInvalidAsProduct: loc:Location.t -> ty -> 'a
+val errorFunctionExpected: loc:Location.t -> term -> 'a
+val errorInvalidConvertible: loc:Location.t -> ty -> ty -> eq_ty -> 'a
+val errorInvalidCoerce: loc:Location.t -> ty -> term -> 'a
+val errorInvalidFunConvertible: loc:Location.t -> ty -> eq_ty -> 'a
+val errorInvalidFunCoerce: loc:Location.t -> term -> 'a
+

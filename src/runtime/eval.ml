@@ -218,7 +218,7 @@ and check_default_v ~loc v t_check =
   Equal.coerce ~loc je t_check >>=
     begin function
       | Some je -> Runtime.return je
-      | None -> Runtime.(error ~loc (TypeMismatchCheckingMode (je, t_check)))
+      | None -> Jdg.errorTypeMismatchCheckingMode ~loc je t_check
   end
 
 and check_default ~loc c t_check =
@@ -300,7 +300,7 @@ and apply ~loc h c =
       jdg_form ~loc (Jdg.Apply (h, e)) >>= fun j ->
       Runtime.return_term j
     | None ->
-       Runtime.(error ~loc (FunctionExpected h))
+       Jdg.errorFunctionExpected ~loc h
 
 (* sequence: loc:Location.t -> Runtime.value -> unit Runtime.comp *)
 and sequence ~loc v =

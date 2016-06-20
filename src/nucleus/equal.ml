@@ -44,7 +44,7 @@ let equal ~loc j1 j2 =
             | Some _ ->
               let eq = Jdg.reflect ~loc juser in
               Opt.return eq
-            | None -> Opt.lift (Runtime.(error ~loc (InvalidEqual target)))
+            | None -> Opt.lift (Jdg.errorInvalidEqual ~loc target)
           end
         | None -> Opt.fail
       end
@@ -77,16 +77,14 @@ let coerce ~loc je jt =
             | Some _, Some _ ->
                Opt.return (Jdg.convert ~loc je eq)
             | (None, Some _ | Some _, None | None, None) ->
-               Runtime.(error ~loc (InvalidConvertible (je_ty, jt, eq)))
+               Jdg.errorInvalidConvertible ~loc je_ty jt eq
           end
 
        | PredefinedTT.Coercible je ->
           begin
             match Jdg.alpha_equal_eq_ty ~loc (Jdg.typeof je) jt with
-            | Some _ ->
-               Opt.return je
-            | None ->
-               Runtime.(error ~loc (InvalidCoerce (jt, je)))
+            | Some _ -> Opt.return je
+            | None   -> Jdg.errorInvalidCoerce ~loc jt je
           end
        end
 
@@ -116,11 +114,11 @@ let coerce_fun ~loc je =
                       let je = Jdg.convert ~loc je eq in
                       Opt.return (je, a, b)
                    | None ->
-                      Runtime.(error ~loc (InvalidFunConvertible (jt, eq)))
+                      Jdg.errorInvalidFunConvertible ~loc jt eq
                  end
 
               | None ->
-                 Runtime.(error ~loc (InvalidFunConvertible (jt, eq)))
+                 Jdg.errorInvalidFunConvertible ~loc jt eq
           end
 
        | PredefinedTT.Coercible je ->
@@ -130,7 +128,7 @@ let coerce_fun ~loc je =
             | Some (a, b) ->
                Opt.return (je, a, b)
             | None ->
-               Runtime.(error ~loc (InvalidFunCoerce je))
+               Jdg.errorInvalidFunCoerce ~loc je
           end
 
      end
@@ -153,17 +151,17 @@ let as_eq ~loc t =
           let jt = Jdg.typeof juser in
           begin match as_eq_alpha jt with
             | None ->
-               Opt.lift Runtime.(error ~loc (InvalidAsEquality jt))
+               Opt.lift (Jdg.errorInvalidAsEquality ~loc jt)
             | Some (e1, e2) ->
               begin match Jdg.alpha_equal_eq_ty ~loc Jdg.ty_ty (Jdg.typeof e1) with
-                | None -> Opt.lift Runtime.(error ~loc (InvalidAsEquality jt))
+                | None -> Opt.lift (Jdg.errorInvalidAsEquality ~loc jt)
                 | Some _ ->
                   begin match Jdg.alpha_equal_eq_ty ~loc t (Jdg.is_ty ~loc e1) with
-                    | None -> Opt.lift Runtime.(error ~loc (InvalidAsEquality jt))
+                    | None -> Opt.lift (Jdg.errorInvalidAsEquality ~loc jt)
                     | Some _ ->
                       begin match as_eq_alpha (Jdg.is_ty ~loc e2) with
                         | None ->
-                          Runtime.(error ~loc (InvalidAsEquality jt))
+                          (Jdg.errorInvalidAsEquality ~loc jt)
 
                         | Some (e1,e2) ->
                           let eq = Jdg.is_type_equality ~loc (Jdg.reflect ~loc juser) in
@@ -191,17 +189,17 @@ let as_prod ~loc t =
           let jt = Jdg.typeof juser in
           begin match as_eq_alpha jt with
             | None ->
-               Opt.lift Runtime.(error ~loc (InvalidAsProduct jt))
+               Opt.lift (Jdg.errorInvalidAsProduct ~loc jt)
             | Some (e1, e2) ->
               begin match Jdg.alpha_equal_eq_ty ~loc Jdg.ty_ty (Jdg.typeof e1) with
-                | None -> Opt.lift Runtime.(error ~loc (InvalidAsProduct jt))
+                | None -> Opt.lift (Jdg.errorInvalidAsProduct ~loc jt)
                 | Some _ ->
                   begin match Jdg.alpha_equal_eq_ty ~loc t (Jdg.is_ty ~loc e1) with
-                    | None -> Opt.lift Runtime.(error ~loc (InvalidAsProduct jt))
+                    | None -> Opt.lift (Jdg.errorInvalidAsProduct ~loc jt)
                     | Some _ ->
                       begin match as_prod_alpha (Jdg.is_ty ~loc e2) with
                         | None ->
-                          Runtime.(error ~loc (InvalidAsProduct jt))
+                          Jdg.errorInvalidAsProduct ~loc jt
 
                         | Some (a, b) ->
                           let eq = Jdg.is_type_equality ~loc (Jdg.reflect ~loc juser) in
