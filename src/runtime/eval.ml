@@ -1,5 +1,7 @@
 (** Evaluation of computations *)
 
+let call_level_hack = External.call_level_hack
+
 (** Notation for the monadic bind *)
 let (>>=) = Runtime.bind
 
@@ -198,7 +200,9 @@ let rec infer {Location.thing=c'; loc} =
         apply ~loc j c2
       | Runtime.Closure f ->
         infer c2 >>= fun v ->
-        Runtime.apply_closure f v
+          (incr call_level_hack;
+          Runtime.apply_closure f v >>= fun answer ->
+            (decr call_level_hack; Runtime.return answer))
       | Runtime.Handler _ | Runtime.Tag _ | Runtime.Tuple _ |
         Runtime.Ref _ | Runtime.String _ as h ->
         Runtime.(error ~loc (Inapplicable h))

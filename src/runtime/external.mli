@@ -3,3 +3,4 @@ val lookup : string -> (Location.t -> Runtime.value Runtime.comp) option
 
 val lookup_ty : string -> Mlty.ty_schema option
 
+val call_level_hack : int ref

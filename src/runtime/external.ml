@@ -1,5 +1,7 @@
 (** Predefined external values. *)
 
+let call_level_hack = ref 0
+
 let (>>=) = Runtime.bind
 
 let print_ty =
@@ -47,6 +49,17 @@ let externals =
           Runtime.return_unit
         )),
       json_ty));
+
+    ("trace",
+      ((fun loc ->
+      Runtime.return_closure (fun v ->
+          Runtime.lookup_penv >>= fun penv ->
+            Format.printf "@[<h>%s %t@]@."
+               (String.make (!call_level_hack) '|')
+               (Runtime.print_value ~penv v) ;
+            Runtime.return_unit
+        )),
+       print_ty));
 
     ("time",
       ((fun loc ->
