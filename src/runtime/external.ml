@@ -54,9 +54,12 @@ let externals =
       ((fun loc ->
       Runtime.return_closure (fun v ->
           Runtime.lookup_penv >>= fun penv ->
+            let old_margin = Format.get_margin() in
+            Format.set_margin 1000000;
             Format.printf "@[<h>%s %t@]@."
                (String.make (!call_level_hack) '|')
                (Runtime.print_value ~penv v) ;
+            Format.set_margin old_margin;
             Runtime.return_unit
         )),
        print_ty));

@@ -136,10 +136,13 @@ let mk_imp xs T =
 
 
 (* Check that two types are equal *)
-let rec equal_ty imps A B = equal_term imps A B
+let rec equal_ty imps A B = 
+  trace ("equal_ty", A, B);
+  equal_term imps A B
 
 (* General equality check *)
 and equal_term imps e1 e2 =
+  trace ("equal_term", e1, e2);
   match (e1, e2) with
   | (?e, ?e) => Some (refl e1)
   | _ =>
@@ -207,6 +210,7 @@ and equal_term imps e1 e2 =
   end
 
 and equal_term_whnf imps e1 e2 =
+  trace ("equal_term_whnf", e1, e2);
   let finalize_congr eq =
     convert eq (convert_eq (typeof eq) (natural e1))
   in
@@ -407,7 +411,8 @@ and instantiate imps a b =
 and whnf_ty imps A = whnf_term imps A
 
 and whnf_term imps e =
-  match whnf_term_no_betas imps e with
+  trace ("whnf_term input", e);
+  let answer = match whnf_term_no_betas imps e with
   | |- ?xi : _ == ?e' =>
     match apply_beta_hint e' with
     | Some (|- ?zeta : _ == ?e'') =>
@@ -415,9 +420,12 @@ and whnf_term imps e =
       transitivity xi (transitivity zeta theta)
     | None => xi
     end
-  end
+  end in
+  trace ("whnf_term output", answer);
+  answer
 
 and whnf_term_no_betas imps e =
+  trace ("whnf_term_no_betas", e);
   match e with
 
   | ⊢ ?h ?a ⇒

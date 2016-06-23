@@ -1,6 +1,8 @@
 (* A short-hand for the print function. *)
 let print x = external "print" x
 
+let trace x = external "trace" x
+
 (* Poor man's debugging mechanism. *)
 mltype debug a = (!!) of a end
 let debug x = print (!! x)
